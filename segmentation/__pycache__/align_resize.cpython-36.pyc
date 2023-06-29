@@ -1,0 +1,107 @@
+3
+
+瀅臽?  ?              @   s`   d dl Z d dlZd dlmZmZ d dlmZ d dlmZ d dl	m
+Z
+ ej?G dd?de??Z
+dS )?   N)?deprecated_api_warning?is_tuple_of)?random)?PIPELINES)?embedc               @   sp   e Zd ZdZddd?Zedd	??Zed
+d??Zedd
+??Zdd?Z	ddd?Z
+dd?Zdd?Zdd?Z
+dd?ZdS )?AlignResizezResize images & seg. Align
+    N?rangeT?   c             C   s?  |d krd | _ n,t|t?r"|| _ n|g| _ tj| j t?s<t?|d k	rb| j d ksnt| j ?dksnt?n|dksnt?|| _|| _	|| _
+|| _d S )N?   ?valuer   )r   r   )?img_scale?isinstance?list?mmcv?is_list_of?tuple?AssertionError?len?multiscale_mode?ratio_range?keep_ratio?size_divisor)?selfr   r   r   r   r   ?r   ?/home/zzw/PVT-main/segmentation/align_resize.py?__init__   s    
+zAlignResize.__init__c             C   s0   t j| t?st?tjjt| ??}| | }||fS )aw  Randomly select an img_scale from given candidates.
+
+        Args:
+            img_scales (list[tuple]): Images scales for selection.
+
+        Returns:
+            (tuple, int): Returns a tuple ``(img_scale, scale_dix)``,
+                where ``img_scale`` is the selected image scale and
+                ``scale_idx`` is the selected index in the given candidates.
+        )r   r   r   r   ?npr   ?randintr   )?img_scales?scale_idxr   r   r   r   ?random_select*   s    
+zAlignResize.random_selectc             C   s|   t j| t?rt| ?dkst?dd?| D ?}dd?| D ?}tjjt|?t	|?d ?}tjjt|?t	|?d ?}||f}|dfS )a  Randomly sample an img_scale when ``multiscale_mode=='range'``.
+
+        Args:
+            img_scales (list[tuple]): Images scale range for sampling.
+                There must be two tuples in img_scales, which specify the lower
+                and uper bound of image scales.
+
+        Returns:
+            (tuple, None): Returns a tuple ``(img_scale, None)``, where
+                ``img_scale`` is sampled scale and None is just a placeholder
+                to be consistent with :func:`random_select`.
+        ?   c             S   s   g | ]}t |??qS r   )?max)?.0?sr   r   r   ?<listcomp>L   s    z-AlignResize.random_sample.<locals>.<listcomp>c             S   s   g | ]}t |??qS r   )?min)r#   r$   r   r   r   r%   M   s    r
+   N)
+r   r   r   r   r   r   r   r   r&   r"   )r   ?img_scale_long?img_scale_short?long_edge?short_edger   r   r   r   ?random_sample<   s    zAlignResize.random_samplec             C   sl   t | t?rt| ?dkst?|\}}||ks.t?tjj?||  | }t| d | ?t| d | ?f}|dfS )a?  Randomly sample an img_scale when ``ratio_range`` is specified.
+
+        A ratio will be randomly sampled from the range specified by
+        ``ratio_range``. Then it would be multiplied with ``img_scale`` to
+        generate sampled scale.
+
+        Args:
+            img_scale (tuple): Images scale base to multiply with ratio.
+            ratio_range (tuple[float]): The minimum and maximum ratio to scale
+                the ``img_scale``.
+
+        Returns:
+            (tuple, None): Returns a tuple ``(scale, None)``, where
+                ``scale`` is sampled ratio multiplied with ``img_scale`` and
+                None is just a placeholder to be consistent with
+                :func:`random_select`.
+        r!   r   r
+   N)r
+   r   r   r   r   r   r+   ?int)r   r   ?min_ratio?max_ratio?ratio?scaler   r   r   ?random_sample_ratioW   s     zAlignResize.random_sample_ratioc             C   s?  | j dk	r\| jdkrB|d jdd? \}}| j||f| j ?\}}q竱 j| jd | j ?\}}n\t| j?dkr|| jd d }}n<| jdkr榺 j| j?\}}n | jdkr磡 j| j?\}}nt?||d< ||d	< dS )
+al  Randomly sample an img_scale according to ``ratio_range`` and
+        ``multiscale_mode``.
+
+        If ``ratio_range`` is specified, a ratio will be sampled and be
+        multiplied with ``img_scale``.
+        If multiple scales are specified by ``img_scale``, a scale will be
+        sampled according to ``multiscale_mode``.
+        Otherwise, single scale will be used.
+
+        Args:
+            results (dict): Result dict from :obj:`dataset`.
+
+        Returns:
+            dict: Two new keys 'scale` and 'scale_idx` are added into
+                ``results``, which would be used by subsequent pipelines.
+        N?imgr!   r   r
+   r   r   r0   r   )	r   r   ?shaper1   r   r   r+   r    ?NotImplementedError)r   ?results?h?wr0   r   r   r   r   ?_random_scaler   s     
+
+
+
+
+zAlignResize._random_scalec             C   sj   t tj|jd | ??| }t tj|jd | ??| }|d krRtj|||f?}ntj|||f|d?}|S )Nr   r
+   )?interpolation)r,   r   ?ceilr3   r   ?imresize)r   r2   r   r9   Zalign_hZalign_wr   r   r   ?_align?  s    zAlignResize._alignc       
+      C   s0  | j rjtj|d |d dd?\}}| j|| j?}|jdd? \}}|d jdd? \}}|| }|| }	n|tj|d |d dd?\}}}	|jdd? \}}ttj	|| j ??| j |kr謙tj	|| j ??| j |ks鎡
+dj||???tj||	||	gtj
+d?}||d< |j|d	< |j|d
+< ||d< | j |d< dS )
+z(Resize images with ``results['scale']``.r2   r0   T)?return_scaleNr!   zimg size not align. h:{} w:{})?dtype?img_shape?pad_shape?scale_factorr   )r   r   ?imrescaler<   r   r3   r;   r,   r   r:   r   ?format?array?float32)
+r   r5   r2   rA   ?new_h?new_wr6   r7   ?w_scale?h_scaler   r   r   ?_resize_img?  s*    
+ 
+
+
+zAlignResize._resize_imgc             C   s?  x膢j dg ?D ]磢| jrDtj|| |d dd?}| j|| jdd?}nvtj|| |d dd?}|jdd? \}}tt	j
+|| j ??| j |kr猼t	j
+|| j ??| j |ks簍dj||???|||< qW dS )z;Resize semantic segmentation map with ``results['scale']``.?seg_fieldsr0   ?nearest)r9   Nr!   z gt_seg size not align. h:{} w:{})
+?getr   r   rB   r<   r   r;   r3   r,   r   r:   r   rC   )r   r5   ?key?gt_segr6   r7   r   r   r   ?_resize_seg?  s     zAlignResize._resize_segc             C   s*   d|kr| j |? | j|? | j|? |S )aM  Call function to resize images, bounding boxes, masks, semantic
+        segmentation map.
+
+        Args:
+            results (dict): Result dict from loading pipeline.
+
+        Returns:
+            dict: Resized results, 'img_shape', 'pad_shape', 'scale_factor',
+                'keep_ratio' keys are added into result dict.
+        r0   )r8   rJ   rP   )r   r5   r   r   r   ?__call__?  s
+    
+
+
+zAlignResize.__call__c          
+   C   s6   | j j}|d| j?d| j?d| j?d| j?d?7 }|S )Nz(img_scale=z, multiscale_mode=z, ratio_range=z
+, keep_ratio=?))?__class__?__name__r   r   r   r   )r   ?repr_strr   r   r   ?__repr__?  s    *zAlignResize.__repr__)Nr   NTr	   )N)rT   ?__module__?__qualname__?__doc__r   ?staticmethodr    r+   r1   r8   r<   rJ   rP   rQ   rV   r   r   r   r   r   	   s       
+&
+	r   )r   ?numpyr   ?mmcv.utilsr   r   r   Zmmseg.datasets.builderr   ?IPythonr   ?register_module?objectr   r   r   r   r   ?<module>   s   
