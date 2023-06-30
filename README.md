@@ -6,7 +6,6 @@ PyraBiNet is an innovative hybrid model optimized for lightweight semantic segme
 
 1. Download and extract ImageNet train and val images from http://image-net.org/. The directory structure is the standard layout for the  datasets. ImageFolder and the training and validation data are expected to be in the train/ folder and val folder respectively:
 /path/to/imagenet/
-
   train/
   
     class1/
@@ -28,18 +27,31 @@ PyraBiNet is an innovative hybrid model optimized for lightweight semantic segme
 2. Download the DOS dataset, organized in the following format:
    
 ├── data
+
 │   ├── coco_trash
+
 │   │   ├── images
+
 │   │   │   ├── train
+
 │   │   │   │   ├── xxx{img_suffix}
+
 │   │   │   │   ├── yyy{img_suffix}
+
 │   │   │   │   ├── zzz{img_suffix}
+
 │   │   │   ├── val
+
 │   │   ├── annotations
+
 │   │   │   ├── train
+
 │   │   │   │   ├── xxx{seg_map_suffix}
+
 │   │   │   │   ├── yyy{seg_map_suffix}
+
 │   │   │   │   ├── zzz{seg_map_suffix}
+
 │   │   │   ├── val
 
 ## Download
