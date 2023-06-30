@@ -14,13 +14,14 @@ from mmseg.apis import set_random_seed, train_segmentor
 from mmseg.datasets import build_dataset
 from mmseg.models import build_segmentor
 from mmseg.utils import collect_env, get_root_logger
-import pvt
+import pyrabinet
 from align_resize import AlignResize
+import dos_dataset
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a segmentor')
-    parser.add_argument('--config', default='/home/zzw/PVT-main/segmentation/configs/sem_fpn/PVT/fpn_pvt_t_ade20k_40k.py', help='train config file path')
+    parser.add_argument('--config', default='../configs/sem_fpn/Pyrabinet/fpn_pyrabinet_ade20k_80k.py',help='train config file path')
     parser.add_argument('--work-dir', help='the dir to save logs and models')
     parser.add_argument(
         '--load-from', help='the checkpoint file to load weights from')
