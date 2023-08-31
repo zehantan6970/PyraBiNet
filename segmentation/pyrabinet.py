@@ -254,13 +254,6 @@ class PyramidVisionTransformer(nn.Module):
             ConvBNReLU(embed_dims[2], embed_dims[2], 3, stride=1, padding=1),
         )
 
-        '''self.D4 = nn.Sequential(
-            nn.Conv2d(embed_dims[2], embed_dims[3], kernel_size=2, stride=2),
-            nn.BatchNorm2d(embed_dims[3]),
-            ConvBNReLU(embed_dims[3], embed_dims[3], 3, stride=1, padding=1),
-            ConvBNReLU(embed_dims[3], embed_dims[3], 3, stride=1, padding=1),
-        )'''
-
         self.cbmm1 = CBMM(embed_dims[0], kernel_size=7)
         self.cbmm2 = CBMM(embed_dims[1], kernel_size=7)
         self.cbmm3 = CBMM(embed_dims[2], kernel_size=7)
@@ -385,7 +378,7 @@ class PyramidVisionTransformer(nn.Module):
         outs.append(x)
 
         # stage 4
-        # y = self.D4(y)
+
         x, (H, W) = self.patch_embed4(x)
         pos_embed4 = self._get_pos_embed(self.pos_embed4[:, 1:], self.patch_embed4, H, W)
         x = x + pos_embed4
